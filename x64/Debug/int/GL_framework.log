@@ -1,0 +1,6 @@
+﻿  physics.cpp
+d:\enti\2n\mecanica\glframework\code\src\physics.cpp(84): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+d:\enti\2n\mecanica\glframework\code\src\physics.cpp(111): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+  GL_framework.vcxproj -> D:\ENTI\2n\Mecanica\glframework\x64\Debug\GL_framework.exe
+  0 File(s) copied
+  0 File(s) copied
