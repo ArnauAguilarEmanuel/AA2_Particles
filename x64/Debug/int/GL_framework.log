@@ -1,14 +1,6 @@
-﻿  imgui.cpp
-  imgui_demo.cpp
-  imgui_draw.cpp
-  imgui_impl_sdl_gl3.cpp
-  main.cpp
-  physics.cpp
-d:\enti\2n\mecanica\aa2_particles\code\src\physics.cpp(84): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-d:\enti\2n\mecanica\aa2_particles\code\src\physics.cpp(111): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
-  render.cpp
-  Generating Code...
-     Creating library D:\ENTI\2n\Mecanica\AA2_Particles\x64\Debug\GL_framework.lib and object D:\ENTI\2n\Mecanica\AA2_Particles\x64\Debug\GL_framework.exp
+﻿  physics.cpp
+d:\enti\2n\mecanica\aa2_particles\code\src\physics.cpp(98): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+d:\enti\2n\mecanica\aa2_particles\code\src\physics.cpp(128): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   GL_framework.vcxproj -> D:\ENTI\2n\Mecanica\AA2_Particles\x64\Debug\GL_framework.exe
   0 File(s) copied
   0 File(s) copied

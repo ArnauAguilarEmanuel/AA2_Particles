@@ -46,8 +46,22 @@ public:
 	Particle(glm::vec3 _position, glm::vec3 _velocity, float _mass) : position(_position), velocity(_velocity), mass(_mass) {}
 	glm::vec3 position;
 	glm::vec3 velocity;
+	glm::vec3 acceleration;
 	float mass;
 };
+
+struct ForceActuator {
+	virtual glm::vec3 computeForce(float mass, const glm::vec3& position) = 0;
+};
+
+struct Collider{};
+
+struct GravityForce : ForceActuator {
+	glm::vec3 computeForce(float mass, const glm::vec3& position) override {
+		return mass * glm::vec3(0,-9.81,0);
+	}
+};
+
 
 class ParticleSystem {
 public:
@@ -58,7 +72,7 @@ public:
 		for (int i = 0; i < count; i++) {
 			particles.push_back(Particle(
 				glm::vec3((((rand() % 1000))/100.f) - 5, ((rand() % 500)/100.f) + 5, ((rand() % 1000)/100.f) - 5),///pos
-				glm::vec3(((rand() % 11)), (rand() % 11), (rand() % 11)),///vel
+				glm::vec3(((rand() % 5)-2), (rand() % 5) - 2, (rand() % 5) - 2),///vel
 				1)///mass
 			);//push a new particle in a random positon x and z and y
 		}
@@ -85,7 +99,10 @@ public:
 	}
 };
 
+
+
 ParticleSystem* sistema;
+std::vector<ForceActuator*> forces;
 
 // Boolean variables allow to show/hide the primitives
 bool renderSphere = true;
@@ -143,15 +160,36 @@ void GUI() {
 	}
 }
 
+glm::vec3 computeForces(float mass, const glm::vec3& position, const std::vector<ForceActuator*>& force_acts) {
+	glm::vec3 force = glm::vec3(0);
+	for (ForceActuator* f : force_acts) {
+		force += f->computeForce(mass, position);
+
+	}
+	return force;
+}
+
+void euler(float dt, ParticleSystem& particles, const std::vector<Collider*>& colliders, const std::vector<ForceActuator*>& force_acts) {
+	for (auto& p : particles.particles) {
+		p.position = p.position + dt * p.velocity;
+		p.velocity = p.velocity + dt * computeForces(p.mass, p.position, force_acts);
+	}
+}
+
+
 void PhysicsInit() {
 	// Do your initialization code here...
 	sistema = new ParticleSystem(5000);
+	forces.push_back(new GravityForce());
 	// ...................................
 }
 
 void PhysicsUpdate(float dt) {
 	// Do your update code here...
 
+	euler(dt, *sistema, std::vector<Collider*>(), forces);
+
+	//std::cout << sistema->particlesPositions[1] << std::endl;
 	sistema->updateParticlesPositon();
 	sistema->updateParticles();
 	// ...........................
