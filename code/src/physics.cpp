@@ -57,11 +57,35 @@ struct ForceActuator {
 struct Collider{};
 
 struct GravityForce : ForceActuator {
+	glm::vec3 gravity;
+	void updateGravity(float g[3]){
+		gravity = glm::vec3(g[0], g[1], g[2]);
+	}
 	glm::vec3 computeForce(float mass, const glm::vec3& position) override {
-		return mass * glm::vec3(0,-9.81,0);
+		return mass * gravity;
 	}
 };
 
+struct PositionalGravityForce : ForceActuator {
+	float M;
+	float G;
+	const glm::vec3 pos;
+	PositionalGravityForce(float _mass, glm::vec3& _position, float _G): pos(_position), M(_mass), G(_G) {}
+
+	glm::vec3 computeForce(float mass, const glm::vec3& position) override {
+		glm::vec3 vec = position - pos;
+		float length = vec.x*vec.x + vec.y *vec.y + vec.z * vec.z;
+		
+		float strength = ((G * M * mass) / length);
+
+		return  strength * glm::normalize((pos - position));
+	}
+
+	void updateMass(float _mass) {
+		M = _mass;
+	}
+
+};
 
 class ParticleSystem {
 public:
@@ -138,6 +162,12 @@ void renderPrims() {
 		Cube::drawCube();
 }
 
+float sphereMass = 0;
+float sphereRaduis = 1;
+float spherePosition[3]{ 0, 3, 0 };
+float gravity[3] { 0, -9.81, 0 };
+bool pause = false;
+bool restart = false;
 
 void GUI() {
 	bool show = true;
@@ -146,17 +176,31 @@ void GUI() {
 	// Do your GUI code here....
 	{	
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);//FrameRate
-		
+		ImGui::Text("");
+
+		ImGui::Checkbox("Pause", &pause);
+		ImGui::SameLine();
+		if (ImGui::Button("Restart"))
+			restart = true;
+
+		ImGui::Text("\nSphere parameters");
+		ImGui::SliderFloat("Sphere mass", &sphereMass, 0.0f, 100.f, "ratio = %.3f");
+		ImGui::InputFloat3("Sphere Position", spherePosition);
+		ImGui::InputFloat("Sphere Radius", &sphereRaduis);
+		ImGui::Text("\nConstants");
+		ImGui::InputFloat3("Gravity", gravity);
+
 	}
 	// .........................
 	
 	ImGui::End();
 
 	// Example code -- ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
-	bool show_test_window = false;
+	bool show_test_window = true;
 	if(show_test_window) {
 		ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
 		ImGui::ShowTestWindow(&show_test_window);
+
 	}
 }
 
@@ -181,18 +225,38 @@ void PhysicsInit() {
 	// Do your initialization code here...
 	sistema = new ParticleSystem(5000);
 	forces.push_back(new GravityForce());
+	glm::vec3 sp = glm::vec3(spherePosition[0], spherePosition[1], spherePosition[2]);
+	Sphere::updateSphere(sp, sphereRaduis);
+	forces.push_back(new PositionalGravityForce(10.f, sp, 66.7f));
 	// ...................................
 }
 
 void PhysicsUpdate(float dt) {
-	// Do your update code here...
+	//update sphere
+	glm::vec3 sp = glm::vec3(spherePosition[0], spherePosition[1], spherePosition[2]);
+	Sphere::updateSphere(sp, sphereRaduis);
 
-	euler(dt, *sistema, std::vector<Collider*>(), forces);
 
-	//std::cout << sistema->particlesPositions[1] << std::endl;
-	sistema->updateParticlesPositon();
-	sistema->updateParticles();
-	// ...........................
+	if (!pause) {
+
+
+		// Do your update code here...
+		dynamic_cast<PositionalGravityForce*>(forces.at(1))->updateMass(sphereMass);
+		dynamic_cast<GravityForce*>(forces.at(0))->updateGravity(gravity);
+		euler(dt, *sistema, std::vector<Collider*>(), forces);
+
+		std::cout << sistema->particlesPositions[1] << std::endl;
+		sistema->updateParticlesPositon();
+		sistema->updateParticles();
+		// ...........................
+	}
+
+	if (restart){
+		restart = false;
+		pause = false;
+		sistema = new ParticleSystem(5000);
+	}
+
 }
 
 void PhysicsCleanup() {
