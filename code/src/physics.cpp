@@ -71,11 +71,12 @@ struct Collider {
 		normal = glm::normalize(normal);
 
 		float planeDistance = (normal.x * old_pos.x + normal.y * old_pos.y + normal.z * old_pos.z + d) / sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z) ;
-		new_pos = old_pos - (1 + elasticCoeficient) * ( normal * old_pos + d) * normal;
+		
+		new_pos = old_pos - (1 + elasticCoeficient) * ( glm::dot(normal, old_pos) + d) * normal;
 
-		new_vel = old_vel - (1 + elasticCoeficient) * (normal * old_vel) * normal;
+		new_vel = old_vel - (1 + elasticCoeficient) * glm::dot(normal , old_vel) * normal;
 
-		new_vel = new_vel - frictionCoeficient * (new_vel - (normal * new_vel) * normal);
+		new_vel = new_vel - frictionCoeficient * (new_vel - glm::dot(normal, new_vel) * normal);
 	}
 };
 
@@ -94,7 +95,7 @@ struct Plane {
 struct PlaneCol : Collider {
 public:
 	Plane plane;
-
+	PlaneCol() {};
 	PlaneCol(glm::vec3 _position, glm::vec3 _normal) {
 		plane = Plane(_position, _normal);
 	}
@@ -107,6 +108,70 @@ public:
 	void getPlane(glm::vec3& normal, float& d) override{
 		normal = plane.normal;
 		d = plane.d;
+	}
+};
+
+struct SphereCol : Collider {
+public:
+
+	float r;
+	glm::vec3 position;
+	glm::vec3 prevPos;
+	glm::vec3 nextPos;
+	SphereCol(): position(0), prevPos(0), nextPos(0){};
+	SphereCol(glm::vec3 _position, float _r): r(_r),position(_position) {
+	}
+
+	bool checkCollision(const glm::vec3& prev_pos, const glm::vec3& next_pos) override {
+		prevPos = prev_pos;
+		nextPos = next_pos;
+		return r >= glm::length(position - next_pos);
+	}
+
+	void getPlane(glm::vec3& normal, float& d) override {
+		glm::vec3 v = nextPos - prevPos;
+		v = glm::normalize(v);
+		glm::vec3 collisionP1;
+		glm::vec3 collisionP2;
+		glm::vec3 collisionP;
+		float alfa1;
+		float alfa2;
+
+		float a = glm::pow(v.x, 2) + glm::pow(v.y, 2) + glm::pow(v.z, 2);
+
+		float b = 2 * prevPos.x * v.x - 2 * v.x*position.x +
+			2 * prevPos.y * v.y - 2 * v.y*position.y +
+			2 * prevPos.z * v.z - 2 * v.z*position.z;
+		
+		float c = -glm::pow(r,2) + glm::pow(prevPos.x,2) + glm::pow(position.x,2)
+			+ glm::pow(prevPos.y, 2) + glm::pow(position.y, 2)
+			+ glm::pow(prevPos.z, 2) + glm::pow(position.z, 2)
+			+ -2 * prevPos.x * position.x
+			+ -2 * prevPos.y * position.y
+			+ -2 * prevPos.z * position.z;
+
+		alfa1 = (-b + glm::sqrt(glm::pow(b, 2) - 4 * (a * c))) / (2 * a);
+		alfa2 = (-b - glm::sqrt(glm::pow(b, 2) - 4 * (a * c))) / (2 * a);
+
+		/*std::cout << nextPos.x << " "<< nextPos.y <<" "<< nextPos.z <<" "<< prevPos.x << " " << prevPos.y << " " << prevPos.z << " " << v.x << " " << v.y << " " << v.z << " " << std::endl;
+		std::cout << a << b << c << std::endl;
+
+		std::cout << alfa1 << alfa2 << std::endl;
+*/
+		collisionP1 = prevPos + v * alfa1;
+		collisionP2 = prevPos + v * alfa2;
+
+
+		collisionP = collisionP2;
+		if( collisionP1.x == glm::clamp(collisionP1.x, glm::min(prevPos.x, nextPos.x), glm::max(prevPos.x, nextPos.x)))
+			if( collisionP1.y == glm::clamp(collisionP1.y, glm::min(prevPos.y, nextPos.y), glm::max(prevPos.y, nextPos.y)))
+				if( collisionP1.z == glm::clamp(collisionP1.z, glm::min(prevPos.z, nextPos.z), glm::max(prevPos.z, nextPos.z)))
+					collisionP = collisionP1;
+
+		/*std::cout<< collisionP.x <<" "<< collisionP.y << " "<< collisionP.y << " "<< std::endl;*/
+		
+		normal = collisionP - position;
+		d = -(collisionP.x* normal.x + collisionP.y* normal.y + collisionP.z* normal.z);
 	}
 };
 
@@ -259,7 +324,7 @@ void GUI() {
 		ImGui::StyleColorsDark();
 
 		ImGui::Text("\nSphere parameters");
-		ImGui::SliderFloat("Sphere mass", &sphereMass, 0.0f, 100.f, "ratio = %.3f");
+		ImGui::SliderFloat("Sphere mass", &sphereMass, 0.0f, 1.f, "ratio = %.3f");
 		ImGui::InputFloat3("Sphere Position", spherePosition);
 		ImGui::InputFloat("Sphere Radius", &sphereRadius);
 
@@ -308,16 +373,44 @@ void euler(float dt, ParticleSystem& particles, const std::vector<Collider*>& co
 	}
 }
 
-PlaneCol botomPlane(glm::vec3(0), glm::vec3(0, 1, 0));
+class Cub {
+public:
+	PlaneCol walls[6];
+	Cub(glm::vec3 pos, int size) {
+		walls[0] = PlaneCol(pos, glm::vec3(0, 1, 0));
 
+		walls[1] = PlaneCol(glm::vec3(pos.x + size, pos.y, pos.z), glm::vec3(-1, 0, 0));
+		walls[2] = PlaneCol(glm::vec3(pos.x - size, pos.y, pos.z), glm::vec3(1, 0, 0));
+
+		walls[3] = PlaneCol(glm::vec3(pos.x, pos.y , pos.z + size), glm::vec3(0, 0, -1));
+		walls[4] = PlaneCol(glm::vec3(pos.x, pos.y , pos.z - size), glm::vec3(0, 0, 1));
+		
+		walls[5] = PlaneCol(glm::vec3(pos.x, pos.y + size * 2, pos.z), glm::vec3(0, -1, 0));
+	}
+
+	void Collide(ParticleSystem* s) {
+		for (Particle& p : s->particles) {
+			for (PlaneCol plane : walls) {
+				if (plane.checkCollision(p.old_pos, p.position)) {
+					plane.computeCollision(p.old_pos, p.old_vel, p.position, p.velocity);
+				}
+			}
+		}
+	}
+};
+
+Cub cube(glm::vec3(0), 5);
+SphereCol spc;
+
+int particles = 5000;
 void PhysicsInit() {
 	// Do your initialization code here...
-	sistema = new ParticleSystem(5000);
+	sistema = new ParticleSystem(particles);
 	forces.push_back(new GravityForce());
 	glm::vec3 sp = glm::vec3(spherePosition[0], spherePosition[1], spherePosition[2]);
 	Sphere::updateSphere(sp, sphereRadius);
+	spc = SphereCol(sp, sphereRadius);
 	forces.push_back(new PositionalGravityForce(10.f, sp, 6.67f));
-
 	// ...................................
 }
 
@@ -325,6 +418,7 @@ void PhysicsUpdate(float dt) {
 	//update sphere
 	glm::vec3 sp = glm::vec3(spherePosition[0], spherePosition[1], spherePosition[2]);
 	Sphere::updateSphere(sp, sphereRadius);
+	spc = SphereCol(sp, sphereRadius);
 	dynamic_cast<PositionalGravityForce*>(forces.at(1))->updatePos(sp);
 	
 	//Update Capsule
@@ -341,12 +435,12 @@ void PhysicsUpdate(float dt) {
 
 		euler(dt, *sistema, std::vector<Collider*>(), forces);
 		
+		cube.Collide(sistema);
 		for (Particle& p : sistema->particles) {
-			if (botomPlane.checkCollision(p.old_pos, p.position)) {
-				botomPlane.computeCollision(p.old_pos, p.old_vel, p.position, p.velocity);
+			if (spc.checkCollision(p.old_pos, p.position)) {
+				spc.computeCollision(p.old_pos, p.old_vel, p.position, p.velocity);
 			}
 		}
-
 
 		sistema->updateParticlesPositon();
 		sistema->updateParticles();
@@ -356,7 +450,7 @@ void PhysicsUpdate(float dt) {
 	if (restart){
 		restart = false;
 		pause = false;
-		sistema = new ParticleSystem(5000);
+		sistema = new ParticleSystem(particles);
 	}
 
 }

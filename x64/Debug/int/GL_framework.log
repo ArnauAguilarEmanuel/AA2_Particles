@@ -1,8 +1,8 @@
 ﻿  physics.cpp
 d:\enti\2n\mecanica\aa2_particles\code\src\physics.cpp(52): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
 d:\enti\2n\mecanica\aa2_particles\code\src\physics.cpp(52): warning C4305: 'initializing': truncation from 'double' to 'float'
-d:\enti\2n\mecanica\aa2_particles\code\src\physics.cpp(201): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-d:\enti\2n\mecanica\aa2_particles\code\src\physics.cpp(231): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+d:\enti\2n\mecanica\aa2_particles\code\src\physics.cpp(266): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+d:\enti\2n\mecanica\aa2_particles\code\src\physics.cpp(296): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   GL_framework.vcxproj -> D:\ENTI\2n\Mecanica\AA2_Particles\x64\Debug\GL_framework.exe
   0 File(s) copied
   0 File(s) copied
