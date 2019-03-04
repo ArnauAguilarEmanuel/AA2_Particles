@@ -171,7 +171,8 @@ public:
 		/*std::cout<< collisionP.x <<" "<< collisionP.y << " "<< collisionP.y << " "<< std::endl;*/
 		
 		normal = collisionP - position;
-		d = -(collisionP.x* normal.x + collisionP.y* normal.y + collisionP.z* normal.z);
+		normal = glm::normalize(normal);
+		d = -(collisionP.x * normal.x + collisionP.y* normal.y + collisionP.z* normal.z);
 	}
 };
 
