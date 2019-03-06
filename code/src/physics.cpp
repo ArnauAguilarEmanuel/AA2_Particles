@@ -60,7 +60,7 @@ float frictionCoeficient = 1;
 ////
 
 struct Collider {
-
+public:
 	virtual bool checkCollision(const glm::vec3& prev_pos, const glm::vec3& next_pos) = 0;
 	virtual void getPlane( glm::vec3& normal, float& d) = 0;
 
@@ -101,7 +101,7 @@ public:
 	}
 
 	bool checkCollision(const glm::vec3& prev_pos, const glm::vec3& next_pos) override {
-		return 0 >= (next_pos.x * plane.normal.x + next_pos.y * plane.normal.y + next_pos.z * plane.normal.z + plane.d) /
+		return 0 > (next_pos.x * plane.normal.x + next_pos.y * plane.normal.y + next_pos.z * plane.normal.z + plane.d) /
 			glm::sqrt(plane.normal.x * plane.normal.x + plane.normal.y * plane.normal.y + plane.normal.z * plane.normal.z);
 	}
 
@@ -113,7 +113,6 @@ public:
 
 struct SphereCol : Collider {
 public:
-
 	float r;
 	glm::vec3 position;
 	glm::vec3 prevPos;
@@ -125,7 +124,7 @@ public:
 	bool checkCollision(const glm::vec3& prev_pos, const glm::vec3& next_pos) override {
 		prevPos = prev_pos;
 		nextPos = next_pos;
-		return r >= glm::length(position - next_pos);
+		return r > glm::length(position - next_pos);
 	}
 
 	void getPlane(glm::vec3& normal, float& d) override {
@@ -153,11 +152,6 @@ public:
 		alfa1 = (-b + glm::sqrt(glm::pow(b, 2) - 4 * (a * c))) / (2 * a);
 		alfa2 = (-b - glm::sqrt(glm::pow(b, 2) - 4 * (a * c))) / (2 * a);
 
-		/*std::cout << nextPos.x << " "<< nextPos.y <<" "<< nextPos.z <<" "<< prevPos.x << " " << prevPos.y << " " << prevPos.z << " " << v.x << " " << v.y << " " << v.z << " " << std::endl;
-		std::cout << a << b << c << std::endl;
-
-		std::cout << alfa1 << alfa2 << std::endl;
-*/
 		collisionP1 = prevPos + v * alfa1;
 		collisionP2 = prevPos + v * alfa2;
 
@@ -167,11 +161,59 @@ public:
 			if( collisionP1.y == glm::clamp(collisionP1.y, glm::min(prevPos.y, nextPos.y), glm::max(prevPos.y, nextPos.y)))
 				if( collisionP1.z == glm::clamp(collisionP1.z, glm::min(prevPos.z, nextPos.z), glm::max(prevPos.z, nextPos.z)))
 					collisionP = collisionP1;
-
-		/*std::cout<< collisionP.x <<" "<< collisionP.y << " "<< collisionP.y << " "<< std::endl;*/
 		
 		normal = collisionP - position;
 		normal = glm::normalize(normal);
+		d = -(collisionP.x * normal.x + collisionP.y* normal.y + collisionP.z* normal.z);
+	}
+};
+
+struct CapsuleCol : Collider {
+public:
+	float r;
+	glm::vec3 posA;
+	glm::vec3 posB;
+	glm::vec3 prevPos;
+	glm::vec3 nextPos;
+	CapsuleCol() : posA(0), posB(0), prevPos(0), nextPos(0) {};
+	CapsuleCol(glm::vec3 _posA, glm::vec3 _posB, float _r) : r(_r), posA(_posA), posB(_posB) {
+
+	}
+
+	bool checkCollision(const glm::vec3& prev_pos, const glm::vec3& next_pos) override {
+		prevPos = prev_pos;
+		nextPos = next_pos;
+
+		return checkDistance(nextPos);
+	}
+
+	bool checkDistance(const glm::vec3& next_pos, glm::vec3& projection = glm::vec3(0)) {
+		glm::vec3 AB = posB - posA;
+		glm::vec3 AN = next_pos - posA;
+		float mag = glm::dot(AN, glm::normalize(AB));
+		mag = glm::clamp(mag, 0.f, glm::length(AB));
+		glm::vec3 proj = posA + glm::normalize(AB) * mag;
+		projection = proj;
+		return glm::length(proj - next_pos) < r;
+	}
+
+	void getPlane(glm::vec3& normal, float& d) override {
+		glm::vec3 out = prevPos;
+		glm::vec3 in = nextPos;
+		glm::vec3 collisionP;
+		glm::vec3 projection;
+		//aproximation
+		for (int i = 0; i < 5; i++) {
+			glm::vec3 AB = in - out;
+			collisionP = out + AB * 0.5f;
+			if (checkDistance(collisionP, projection)) {
+				in = collisionP;
+			}
+			else out = collisionP;
+		}
+		normal = collisionP - projection;
+		normal = glm::normalize(normal);
+		collisionP = projection + normal * r;
 		d = -(collisionP.x * normal.x + collisionP.y* normal.y + collisionP.z* normal.z);
 	}
 };
@@ -190,10 +232,6 @@ public:
 struct ForceActuator {
 	virtual glm::vec3 computeForce(float mass, const glm::vec3& position) = 0;
 };
-
-
-
-
 
 
 
@@ -329,7 +367,7 @@ void GUI() {
 		ImGui::InputFloat3("Sphere Position", spherePosition);
 		ImGui::InputFloat("Sphere Radius", &sphereRadius);
 
-		ImGui::Text("\nSphere parameters");
+		ImGui::Text("\nCapsule parameters");
 		ImGui::InputFloat3("Capusle Position A", CapsulePositionA);
 		ImGui::InputFloat3("Capsule Position B", CapsulePositionB);
 		ImGui::InputFloat("Capsule Radius", &capsuleRadius);
@@ -402,6 +440,7 @@ public:
 
 Cub cube(glm::vec3(0), 5);
 SphereCol spc;
+CapsuleCol capc;
 
 int particles = 5000;
 void PhysicsInit() {
@@ -411,6 +450,9 @@ void PhysicsInit() {
 	glm::vec3 sp = glm::vec3(spherePosition[0], spherePosition[1], spherePosition[2]);
 	Sphere::updateSphere(sp, sphereRadius);
 	spc = SphereCol(sp, sphereRadius);
+	glm::vec3 cpA = glm::vec3(CapsulePositionA[0], CapsulePositionA[1], CapsulePositionA[2]);
+	glm::vec3 cpB = glm::vec3(CapsulePositionB[0], CapsulePositionB[1], CapsulePositionB[2]);
+	capc = CapsuleCol(cpA, cpB, capsuleRadius);
 	forces.push_back(new PositionalGravityForce(10.f, sp, 6.67f));
 	// ...................................
 }
@@ -426,6 +468,7 @@ void PhysicsUpdate(float dt) {
 	glm::vec3 cpA = glm::vec3(CapsulePositionA[0], CapsulePositionA[1], CapsulePositionA[2]);
 	glm::vec3 cpB = glm::vec3(CapsulePositionB[0], CapsulePositionB[1], CapsulePositionB[2]);
 	Capsule::updateCapsule(cpA, cpB, capsuleRadius);
+	capc = CapsuleCol(cpA, cpB, capsuleRadius);
 
 
 	if (!pause) {
@@ -440,6 +483,12 @@ void PhysicsUpdate(float dt) {
 		for (Particle& p : sistema->particles) {
 			if (spc.checkCollision(p.old_pos, p.position)) {
 				spc.computeCollision(p.old_pos, p.old_vel, p.position, p.velocity);
+			}
+		}
+
+		for (Particle& p : sistema->particles) {
+			if (capc.checkCollision(p.old_pos, p.position)) {
+				capc.computeCollision(p.old_pos, p.old_vel, p.position, p.velocity);
 			}
 		}
 
