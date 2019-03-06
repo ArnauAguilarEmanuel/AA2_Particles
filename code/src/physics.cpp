@@ -57,6 +57,8 @@ bool restart = false;
 
 float elasticCoeficient = 1;
 float frictionCoeficient = 1;
+
+float particleMass = 1;
 ////
 
 struct Collider {
@@ -257,7 +259,7 @@ struct PositionalGravityForce : ForceActuator {
 		float length = vec.x*vec.x + vec.y *vec.y + vec.z * vec.z;
 		
 		float strength = ((G * M * mass) / length);
-
+		
 		return  strength * glm::normalize((pos - position));
 	}
 
@@ -301,7 +303,10 @@ public:
 		}
 	}
 
-	void updateParticles() {
+	void updateParticles(float _mass) {
+		for (Particle& p : particles) {
+			p.mass = _mass;
+		}
 		Particles::updateParticles(0, particles.size(), &particlesPositions[0]);
 	}
 };
@@ -360,7 +365,9 @@ void GUI() {
 		ImGui::SameLine();
 		ImGui::Checkbox("Pause", &pause);
 
+		ImGui::Text("\n");
 		ImGui::StyleColorsDark();
+		ImGui::InputFloat("Particle Mass", &particleMass);
 
 		ImGui::Text("\nSphere parameters");
 		ImGui::SliderFloat("Sphere mass", &sphereMass, 0.0f, 1.f, "ratio = %.3f");
@@ -493,7 +500,7 @@ void PhysicsUpdate(float dt) {
 		}
 
 		sistema->updateParticlesPositon();
-		sistema->updateParticles();
+		sistema->updateParticles(particleMass);
 		// ...........................
 	}
 
